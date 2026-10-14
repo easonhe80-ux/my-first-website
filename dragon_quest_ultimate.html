@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dragon Quest: Ultimate Edition</title>
+<style>
+:root{--bg:#12182f;--panel:#202a4c;--panel2:#17203b;--gold:#ffe58a;--blue:#b9d8ff;--green:#85efb1;--red:#ff8585}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:radial-gradient(circle at top,#30456d,var(--bg) 65%);color:#f8f7ff;font-family:system-ui,Arial,sans-serif;min-height:100vh}
+main{max-width:900px;margin:auto}
+header,.panel{background:var(--panel);border:1px solid #6174a5;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 10px 30px #0003}
+h1{color:var(--gold);margin:0 0 6px;font-size:clamp(1.8rem,5vw,2.7rem)}h2{margin:0 0 12px}p{line-height:1.5}
+.small{color:#cbd5f3;font-size:.92rem}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{background:var(--panel2);padding:12px;border-radius:12px}
+.stat strong{display:block;font-size:1.15rem;margin-top:4px}
+.bar{height:9px;background:#424a67;border-radius:99px;overflow:hidden;margin-top:8px}.bar span{display:block;height:100%;background:var(--green);width:100%;transition:width .2s}
+.scene{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:18px;background:linear-gradient(135deg,#253c62,#31584f);padding:18px;border-radius:15px;margin-bottom:14px;min-height:155px}
+.art{text-align:center;font-size:clamp(3.3rem,10vw,5.5rem)}
+button{border:0;border-radius:11px;padding:12px 14px;font-size:1rem;font-weight:750;cursor:pointer;background:var(--gold);color:#17213b}
+button:hover{filter:brightness(1.07)}button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:9px;flex-wrap:wrap}.actions button{flex:1;min-width:145px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.item{background:var(--panel2);padding:14px;border-radius:13px;border:1px solid #4c5b83}
+.item .emoji{font-size:2rem}.item h3{margin:7px 0}.item p{margin:6px 0}.item button{width:100%;margin-top:8px}
+#message{color:var(--green);font-weight:700;min-height:24px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}nav button{background:var(--blue)}
+.hidden{display:none}.pill{display:inline-block;background:#10182e;border-radius:99px;padding:5px 10px;font-size:.85rem;color:#d9e2ff}
+footer{text-align:center;color:#cbd5f3;font-size:.85rem;padding:8px}
+@media(max-width:650px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.scene{grid-template-columns:1fr;text-align:center}.scene .art{font-size:4rem}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>🐉 Dragon Quest: Ultimate Edition</h1>
+  <p class="small">Explore the forest, shop for gear, adopt a pet, and defeat the Dragon King!</p>
+  <nav>
+    <button onclick="showTab('adventure')">⚔️ Adventure</button>
+    <button onclick="showTab('shop')">🛒 Shop</button>
+    <button onclick="showTab('inventory')">🎒 Inventory</button>
+  </nav>
+  <div class="stats">
+    <div class="stat">❤️ Health<strong id="healthText">100 / 100</strong><div class="bar"><span id="healthBar"></span></div></div>
+    <div class="stat">⭐ Experience<strong id="xpText">0 XP</strong></div>
+    <div class="stat">🪙 Gold<strong id="goldText">30</strong></div>
+    <div class="stat">🏆 Level<strong id="levelText">1 / 5</strong></div>
+  </div>
+  <p class="small" id="saveStatus">💾 Progress saves automatically on this device.</p>
+</header>
+
+<section id="adventure" class="panel">
+  <div class="scene"><div class="art" id="art">👹</div><div><span class="pill" id="stagePill">LEVEL 1</span><h2 id="sceneTitle">The Goblin Bridge</h2><p id="story">A goblin blocks your path. Pick your move!</p></div></div>
+  <div id="choices" class="actions"></div>
+  <p id="message" role="status"></p>
+</section>
+
+<section id="shop" class="panel hidden">
+  <h2>🛒 Adventurer's Shop</h2><p class="small">Spend gold on equipment and a loyal pet. Your sword and armor make battles easier!</p>
+  <div class="grid" id="shopItems"></div>
+</section>
+
+<section id="inventory" class="panel hidden">
+  <h2>🎒 Your Inventory</h2><div id="inventoryItems"></div>
+  <div class="actions"><button onclick="saveGame()">💾 Save now</button><button onclick="resetGame()">🔄 New game</button></div>
+</section>
+<footer>Made for brave adventurers. Your progress is stored in your browser when available.</footer>
+</main>
+
+<script>
+const defaults=()=>({health:100,xp:0,gold:30,level:1,sword:0,armor:0,pet:"None",done:false,seen:{},bossHP:100});
+let game=loadGame()||defaults();
+const items=[
+ {id:"sword",name:"Wooden Sword",emoji:"🗡️",price:15,desc:"+5 battle power"},
+ {id:"sword2",name:"Steel Sword",emoji:"⚔️",price:40,desc:"+15 battle power"},
+ {id:"armor",name:"Leather Armor",emoji:"🥋",price:20,desc:"Take 5 less damage"},
+ {id:"armor2",name:"Knight Armor",emoji:"🛡️",price:45,desc:"Take 12 less damage"},
+ {id:"pet",name:"Forest Fox",emoji:"🦊",price:25,desc:"Your pet finds bonus gold"},
+ {id:"pet2",name:"Baby Dragon",emoji:"🐲",price:60,desc:"Your pet boosts XP and gold"}
+];
+function loadGame(){try{const s=localStorage.getItem("dragonQuestUltimate");return s?{...defaults(),...JSON.parse(s)}:null}catch(e){return null}}
+function saveGame(){try{localStorage.setItem("dragonQuestUltimate",JSON.stringify(game));document.getElementById("saveStatus").textContent="💾 Saved! Your progress is stored on this device."}catch(e){document.getElementById("saveStatus").textContent="Autosave isn't available in this browser session."}}
+function update(){
+ $("healthText").textContent=`${game.health} / 100`; $("healthBar").style.width=game.health+"%";
+ $("healthBar").style.background=game.health<31?"var(--red)":"var(--green)";
+ $("xpText").textContent=game.xp+" XP";$("goldText").textContent=game.gold;
+ $("levelText").textContent=Math.min(game.level,5)+" / 5";
+ renderShop();renderInventory();saveGame();
+}
+function $(id){return document.getElementById(id)}
+function showTab(tab){["adventure","shop","inventory"].forEach(t=>$(t).classList.toggle("hidden",t!==tab));}
+function scene(title,art,story,choices,message=""){
+ $("sceneTitle").textContent=title;$("art").textContent=art;$("story").textContent=story;
+ $("stagePill").textContent="LEVEL "+Math.min(game.level,5);
+ $("message").textContent=message;const box=$("choices");box.replaceChildren();
+ choices.forEach(c=>{const b=document.createElement("button");b.textContent=c.label;b.onclick=c.action;box.appendChild(b)});
+ update();
+}
+function reward(xp,gold){game.xp+=xp;game.gold+=gold+(game.pet==="Forest Fox"?5:0)+(game.pet==="Baby Dragon"?3:0)}
+function hurt(amount){const reduction=game.armor===2?12:game.armor===1?5:0;game.health=Math.max(0,game.health-Math.max(0,amount-reduction))}
+function start(){game.level=1;scene("The Goblin Bridge","👹","A goblin blocks the bridge. What will you do?",[
+{label:"⚔️ Fight the goblin",action:()=>{hurt(20);reward(25,10);continueAfter("You won the fight and found some gold!");}},
+{label:"🥷 Sneak past",action:()=>{reward(15,5);continueAfter("You slipped through a hidden path!");}},
+{label:"🧠 Challenge him to a riddle",action:riddle}
+])}
+function continueAfter(msg){if(game.health<=0)return gameOver();game.level=2;scene("Shadow Wolf","🐺",msg+" A shadow wolf blocks the next path.",[
+{label:"⚔️ Fight (-20 base damage)",action:()=>{hurt(20);reward(30,12);afterWolf("You bravely chased off the wolf!");}},
+{label:"🍎 Offer food (costs 5 gold)",action:()=>{if(game.gold<5){scene("No food!","🐺","You need 5 gold. Try another choice.",[{label:"⚔️ Fight the wolf",action:()=>{hurt(20);reward(30,12);afterWolf("You chased off the wolf!");}},{label:"🏃 Run away",action:()=>{hurt(5);reward(10,0);afterWolf("You escaped safely.");}}]);}else{game.gold-=5;reward(25,0);afterWolf("The wolf eats and lets you pass!");}}},
+{label:"🏃 Run away (-5 base damage)",action:()=>{hurt(5);reward(10,0);afterWolf("You escaped the wolf.");}}
+])}
+function afterWolf(msg){if(game.health<=0)return gameOver();game.level=3;scene("The Troll's Puzzle","🧌",msg+" The troll asks: What is 7 × 8?",[
+{label:"🧠 56 — correct!",action:()=>{reward(25,15);cave("Correct! The troll gives you a reward.");}},
+{label:"🤔 54",action:()=>{reward(5,0);cave("Not quite—7 × 8 = 56. Keep going!");}},
+{label:"💪 Push past (-15 base damage)",action:()=>{hurt(15);reward(10,0);if(game.health<=0)gameOver();else cave("You pushed past the troll.");}}
+])}
+function riddle(){scene("Goblin Riddle","👹","I have hands but cannot clap, and a face but cannot smile. What am I?",[
+{label:"🕰️ A clock",action:()=>{reward(25,20);continueAfter("Correct! The goblin rewards your cleverness.");}},
+{label:"🗿 A statue",action:()=>{reward(5,0);continueAfter("Not quite! The answer is a clock.");}},
+{label:"🤖 A robot",action:()=>{reward(5,0);continueAfter("Not quite! The answer is a clock.");}}
+])}
+function cave(msg){if(game.health<=0)return gameOver();game.level=4;scene("Crystal Cave","🦇",msg+" A swarm of bats surrounds a glowing crystal.",[
+{label:"🛡️ Use shield (+15 XP)",action:()=>{reward(15,5);boss();}},
+{label:"✨ Use magic (+20 XP, costs 5 gold)",action:()=>{if(game.gold<5){scene("Out of magic","🦇","You need 5 gold. Use your shield instead.",[{label:"🛡️ Use shield",action:()=>{reward(15,5);boss();}}]);}else{game.gold-=5;reward(20,0);boss();}}},
+{label:"🏃 Dash through (-10 base damage)",action:()=>{hurt(10);reward(10,0);if(game.health<=0)gameOver();else boss();}}
+])}
+function boss(){if(game.health<=0)return gameOver();game.level=5;game.bossHP=100;scene("FINAL BOSS: Dragon King","🐉","The Dragon King roars! His boss health is 100. Pick your battle move.",[
+{label:"⚔️ Sword strike",action:()=>bossAttack("sword")},
+{label:"✨ Magic blast (costs 10 XP)",action:()=>{if(game.xp<10){scene("Not enough XP","🧙","You need 10 XP for magic.",[{label:"⚔️ Sword strike",action:()=>bossAttack("sword")}]);}else{game.xp-=10;bossAttack("magic");}}},
+{label:"🛡️ Defend and heal (+10 health)",action:()=>{game.health=Math.min(100,game.health+10);hurt(8);if(game.health<=0)gameOver();else scene("Dragon Battle","🐉","You blocked some damage and recovered your breath. Boss health: "+game.bossHP+".",[{label:"⚔️ Attack",action:()=>bossAttack("sword")},{label:"✨ Magic blast",action:()=>{if(game.xp>=10){game.xp-=10;bossAttack("magic")}else bossAttack("sword")}}]);}}
+])}
+function bossAttack(type){const power=(type==="magic"?35:20)+(game.sword===2?15:game.sword===1?5:0)+(game.pet==="Baby Dragon"?5:0);game.bossHP-=power;if(game.bossHP<=0){game.bossHP=0;return win()}hurt(18);if(game.health<=0)return gameOver();scene("Dragon Battle","🐉","Your "+(type==="magic"?"magic blast":"sword strike")+" dealt "+power+" damage! Dragon health: "+game.bossHP+"/100. The dragon counterattacks!",[
+{label:"⚔️ Strike again",action:()=>bossAttack("sword")},
+{label:"✨ Magic blast (-10 XP)",action:()=>{if(game.xp>=10){game.xp-=10;bossAttack("magic")}else scene("Not enough XP","🧙","You need 10 XP. Choose a sword strike.",[{label:"⚔️ Strike",action:()=>bossAttack("sword")}])}},
+{label:"🛡️ Defend (+10 health, then damage)",action:()=>{game.health=Math.min(100,game.health+10);hurt(8);if(game.health<=0)gameOver();else scene("Dragon Battle","🐉","You defended. Dragon health: "+game.bossHP+"/100.",[{label:"⚔️ Strike",action:()=>bossAttack("sword")},{label:"✨ Magic blast",action:()=>{if(game.xp>=10){game.xp-=10;bossAttack("magic")}else bossAttack("sword")}}])}}
+])}
+function win(){game.done=true;reward(100,100);scene("🏆 Kingdom Saved!","👑💎","You defeated the Dragon King and recovered the Lost Crystal! Final rewards: +100 XP and +100 gold.",[{label:"🔄 Play a new game",action:resetGame}],"LEGENDARY HERO UNLOCKED!")}
+function gameOver(){scene("Rest and try again","🌙","Your health reached zero. Your saved progress remains, so you can restart and try a different strategy.",[{label:"🔄 Restart adventure",action:resetGame}])}
+function renderShop(){$("shopItems").replaceChildren();items.forEach(item=>{const div=document.createElement("div");div.className="item";let owned=(item.id==="sword"&&game.sword>=1)||(item.id==="sword2"&&game.sword>=2)||(item.id==="armor"&&game.armor>=1)||(item.id==="armor2"&&game.armor>=2)||(item.id==="pet"&&game.pet==="Forest Fox")||(item.id==="pet2"&&game.pet==="Baby Dragon");div.innerHTML=`<div class="emoji">${item.emoji}</div><h3>${item.name}</h3><p class="small">${item.desc}</p><p>🪙 ${item.price} gold</p>`;const b=document.createElement("button");b.textContent=owned?"Owned / Equipped":"Buy";b.disabled=owned||game.gold<item.price;b.onclick=()=>buy(item);div.appendChild(b);$("shopItems").appendChild(div)})}
+function buy(item){if(game.gold<item.price)return;game.gold-=item.price;if(item.id==="sword")game.sword=Math.max(game.sword,1);if(item.id==="sword2")game.sword=2;if(item.id==="armor")game.armor=Math.max(game.armor,1);if(item.id==="armor2")game.armor=2;if(item.id==="pet")game.pet="Forest Fox";if(item.id==="pet2")game.pet="Baby Dragon";$("message").textContent="Purchased "+item.name+"!";update()}
+function renderInventory(){const owned=[];if(game.sword)owned.push(game.sword===2?"⚔️ Steel Sword":"🗡️ Wooden Sword");if(game.armor)owned.push(game.armor===2?"🛡️ Knight Armor":"🥋 Leather Armor");if(game.pet!=="None")owned.push((game.pet==="Baby Dragon"?"🐲 ":"🦊 ")+game.pet);$("inventoryItems").innerHTML=`<p><b>Weapons:</b> ${game.sword?"Sword equipped":"None yet"}</p><p><b>Armor:</b> ${game.armor?"Armor equipped":"None yet"}</p><p><b>Pet:</b> ${game.pet}</p><p><b>Items:</b> ${owned.length?owned.join(", "):"Your bag is empty. Visit the shop!"}</p>`}
+function resetGame(){game=defaults();showTab("adventure");start()}
+start();update();
+</script>
+</body>
+</html>
